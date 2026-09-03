@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Alerta Fila | Perseguini</title>
+
+<!-- PWA: manifest + ícone + cor da barra do navegador -->
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="theme-color" content="#0a1a2b" />
+
+<!--
+  =====================================================================
+  ALERTA FILA - PERSEGUINI
+  =====================================================================
+  App de 1 tela pra ativar/desativar o alerta automático da fila de
+  caminhões (CARGA LIVE -> Telegram), rodando no seu Apps Script.
+
+  COMO INSTALAR NO CELULAR (tipo um app):
+  1. Hospede este arquivo em algum lugar com link público (ex: o
+     GitHub Pages que você já usa, ou até dentro do próprio Apps
+     Script como mais um doGet).
+  2. Abra o link no navegador do celular.
+  3. Menu (3 pontinhos) > "Adicionar à tela inicial".
+  4. Pronto, vira um ícone de app.
+
+  O QUE VOCÊ PRECISA EDITAR (só aqui embaixo, no bloco CONFIG):
+  - URL_ATIVAR  -> o link ".../exec?acao=iniciar" da sua implantação
+  - URL_PARAR   -> o link ".../exec?acao=parar" da sua implantação
+  - FOTO_URL    -> o link de uma foto/logo sua (ou do caminhão) pra
+                   aparecer no topo do app. Pode ser uma imagem
+                   hospedada no Google Drive (link direto), Imgur, etc.
+  - NOME_APP    -> o texto que aparece embaixo da foto.
+  =====================================================================
+-->
+
+<style>
+  /* ---------------------------------------------------------------
+     TOKENS DE DESIGN
+     Paleta "rodovia à noite": navy profundo + âmbar (cor de sinaleira
+     de caminhão), tipografia condensada pra remeter a placas de estrada.
+     --------------------------------------------------------------- */
+  :root {
+    --navy-950: #0a1a2b;
+    --navy-900: #0f2740;
+    --navy-800: #163752;
+    --amber-400: #f4a100;
+    --amber-300: #ffbb33;
+    --green-500: #2fbf71;
+    --red-500: #e0503f;
+    --ink-100: #f4f7fa;
+    --ink-300: #b9c7d6;
+    --ink-500: #7e93a7;
+    --radius: 18px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: radial-gradient(circle at 50% -10%, var(--navy-800), var(--navy-950) 60%);
+    color: var(--ink-100);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Tipografia condensada só para títulos/rótulos - remete a placa de rodovia */
+  @import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&display=swap");
+  .titulo-estrada {
+    font-family: "Barlow Condensed", -apple-system, sans-serif;
+    letter-spacing: 0.02em;
+  }
+
+  .tela {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px 32px;
+  }
+
+  /* ---------- Cabeçalho / personalização com foto ---------- */
+  .avatar-wrap {
+    width: 104px;
+    height: 104px;
+    border-radius: 50%;
+    padding: 3px;
+    background: linear-gradient(135deg, var(--amber-400), var(--amber-300));
+    box-shadow: 0 8px 24px rgba(244, 161, 0, 0.25);
+  }
+
+  .avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    background: var(--navy-800);
+  }
+
+  .nome-app {
+    margin-top: 18px;
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .subtitulo {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--ink-300);
+    text-align: center;
+  }
+
+  /* ---------- Cartão de status ---------- */
+  .status-card {
+    margin-top: 32px;
+    width: 100%;
+    max-width: 340px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--ink-500);
+    flex-shrink: 0;
+    transition: background 0.25s ease;
+  }
+  .status-dot.ativo { background: var(--green-500); box-shadow: 0 0 12px var(--green-500); }
+  .status-dot.parado { background: var(--red-500); box-shadow: 0 0 12px var(--red-500); }
+
+  .status-texto {
+    font-size: 15px;
+    color: var(--ink-100);
+    line-height: 1.4;
+  }
+  .status-texto small {
+    display: block;
+    color: var(--ink-500);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+
+  /* ---------- Botões ---------- */
+  .botoes {
+    width: 100%;
+    max-width: 340px;
+    margin-top: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  button.acao {
+    border: none;
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    font-size: 17px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: transform 0.12s ease, filter 0.12s ease;
+  }
+  button.acao:active {
+    transform: scale(0.97);
+  }
+  button.acao:disabled {
+    opacity: 0.55;
+    cursor: default;
+    transform: none;
+  }
+
+  .btn-ativar {
+    background: linear-gradient(135deg, var(--green-500), #23a25f);
+    color: #06251a;
+  }
+  .btn-parar {
+    background: rgba(224, 80, 63, 0.14);
+    color: #ffb3a6;
+    border: 1px solid rgba(224, 80, 63, 0.4);
+  }
+  .btn-instalar {
+    background: linear-gradient(135deg, var(--amber-300), var(--amber-400));
+    color: #2b1a00;
+  }
+
+  .icone {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .rodape {
+    margin-top: auto;
+    padding-top: 40px;
+    font-size: 12px;
+    color: var(--ink-500);
+    text-align: center;
+  }
+
+  /* Respeita quem prefere menos animação */
+  @media (prefers-reduced-motion: reduce) {
+    button.acao { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="tela">
+
+  <!-- ============= CABEÇALHO / PERSONALIZAÇÃO ============= -->
+  <div class="avatar-wrap">
+    <!--
+      EDITE AQUI: troque o "src" pela URL da sua foto (ou logo do
+      caminhão). Se não tiver uma pronta, deixei um ícone de caminhão
+      como placeholder via emoji abaixo do <img> (caso a imagem falhe
+      em carregar, o onerror troca pelo emoji).
+    -->
+    <img
+      class="avatar"
+      id="fotoPerfil"
+      src="COLE_AQUI_A_URL_DA_SUA_FOTO.jpg"
+      alt="Foto de perfil"
+      onerror="this.onerror=null; this.replaceWith(Object.assign(document.createElement('div'), {className:'avatar', style:'display:flex;align-items:center;justify-content:center;font-size:44px;', textContent:'🚛'}));"
+    />
+  </div>
+
+  <div class="nome-app titulo-estrada">Alerta Fila</div>
+  <div class="subtitulo">Perseguini · CARGA LIVE</div>
+
+  <!-- ============= STATUS ATUAL (visual, local) ============= -->
+  <div class="status-card">
+    <div class="status-dot" id="statusDot"></div>
+    <div class="status-texto">
+      <span id="statusTexto">Toque em um botão abaixo</span>
+      <small id="statusHora"></small>
+    </div>
+  </div>
+
+  <!-- ============= BOTÕES DE AÇÃO ============= -->
+  <div class="botoes">
+    <button class="acao btn-ativar" id="btnAtivar" onclick="ativarAlerta()">
+      <span class="icone">▶️</span> Ativar alerta
+    </button>
+    <button class="acao btn-parar" id="btnParar" onclick="pararAlerta()">
+      <span class="icone">⏹️</span> Desativar alerta
+    </button>
+  </div>
+
+  <!--
+    Botão de instalar o app na tela inicial. Fica escondido até o
+    navegador avisar que a instalação está disponível (evento
+    "beforeinstallprompt", só existe em Chrome/Android e similares -
+    no iPhone/Safari não existe esse botão nativo, lá a instalação
+    continua sendo pelo menu "Adicionar à Tela de Início").
+  -->
+  <button class="acao btn-instalar" id="btnInstalar" onclick="instalarApp()" style="display:none;">
+    <span class="icone">⬇️</span> Instalar app
+  </button>
+
+  <div class="rodape">Verifica a fila a cada 5 min · avisa no Telegram</div>
+</div>
+
+<script>
+  /* =====================================================================
+     CONFIG — edite só esta parte
+     ===================================================================== */
+  var URL_ATIVAR = "https://script.google.com/macros/s/AKfycbzRAzv6kthbdO27OXkgSScOnsHkjraKfVdgcaNeEmB2mgo6lsf9OEHq5mkoFH_c4ybuSQ/exec?acao=iniciar";
+  var URL_PARAR  = "https://script.google.com/macros/s/AKfycbzRAzv6kthbdO27OXkgSScOnsHkjraKfVdgcaNeEmB2mgo6lsf9OEHq5mkoFH_c4ybuSQ/exec?acao=parar";
+
+  /* =====================================================================
+     LÓGICA DOS BOTÕES
+     Usamos fetch em modo "no-cors": o navegador dispara a requisição
+     pro Apps Script normalmente, mas por ser um domínio diferente
+     (script.google.com), o JavaScript não consegue LER a resposta.
+     Por isso não mostramos o texto que o Apps Script devolve — só
+     confirmamos aqui na tela que o toque foi enviado.
+     Se quiser 100% de certeza, dá uma olhada no Telegram depois.
+     ===================================================================== */
+
+  var statusDot = document.getElementById("statusDot");
+  var statusTexto = document.getElementById("statusTexto");
+  var statusHora = document.getElementById("statusHora");
+  var btnAtivar = document.getElementById("btnAtivar");
+  var btnParar = document.getElementById("btnParar");
+
+  function horaAgora() {
+    var d = new Date();
+    return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function setBotoesOcupados(ocupado) {
+    btnAtivar.disabled = ocupado;
+    btnParar.disabled = ocupado;
+  }
+
+  function dispararAcao(url, textoOtimista, classeStatus) {
+    if (!url || url.indexOf("COLE_AQUI") === 0) {
+      statusTexto.textContent = "⚠️ Falta configurar o link no código (veja o bloco CONFIG).";
+      return;
+    }
+
+    setBotoesOcupados(true);
+    statusTexto.textContent = "Enviando...";
+
+    fetch(url, { method: "GET", mode: "no-cors" })
+      .then(function () {
+        // Em modo no-cors não dá pra ler a resposta real do servidor,
+        // então assumimos sucesso quando a requisição não der erro de rede.
+        statusDot.className = "status-dot " + classeStatus;
+        statusTexto.textContent = textoOtimista;
+        statusHora.textContent = "às " + horaAgora();
+      })
+      .catch(function () {
+        statusTexto.textContent = "⚠️ Não consegui conectar. Confira sua internet.";
+      })
+      .finally(function () {
+        setBotoesOcupados(false);
+      });
+  }
+
+  function ativarAlerta() {
+    dispararAcao(URL_ATIVAR, "✅ Alerta ativado (verifica a cada 5 min).", "ativo");
+  }
+
+  function pararAlerta() {
+    dispararAcao(URL_PARAR, "🛑 Alerta desativado.", "parado");
+  }
+
+  /* =====================================================================
+     PWA: registrar service worker + botão "Instalar app"
+     ===================================================================== */
+  if ("serviceWorker" in navigator) {
+    // OBS: precisa estar servido via https (GitHub Pages já é https).
+    navigator.serviceWorker.register("sw.js").catch(function (err) {
+      console.warn("Falha ao registrar service worker:", err);
+    });
+  }
+
+  var eventoInstalacao = null;
+  var btnInstalar = document.getElementById("btnInstalar");
+
+  // O Chrome dispara esse evento quando entende que o app cumpre os
+  // requisitos de instalação (manifest + service worker + https).
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    eventoInstalacao = e;
+    btnInstalar.style.display = "flex"; // só mostra o botão agora
+  });
+
+  function instalarApp() {
+    if (!eventoInstalacao) return;
+    eventoInstalacao.prompt();
+    eventoInstalacao.userChoice.finally(function () {
+      eventoInstalacao = null;
+      btnInstalar.style.display = "none";
+    });
+  }
+
+  // Depois de instalado, esconde o botão (não faz sentido oferecer de novo).
+  window.addEventListener("appinstalled", function () {
+    btnInstalar.style.display = "none";
+  });
+</script>
+
+</body>
+</html>
