@@ -145,7 +145,7 @@
 
   // Link do SEU Apps Script de consulta (veja o comentário grande
   // logo acima da função consultarAgendamento() mais abaixo).
-  var URL_CONSULTA = "https://script.google.com/macros/s/AKfycbxyZRTUsTuD42j2y7pJ7hmurxC0aP1Epf_1tnAKcc8ei8zd6E-xDkyR3ECWaYD_qvvrlw/exec?acao=consultar";
+  var URL_CONSULTA = "https://script.google.com/macros/s/AKfycbxZCqaGzO_bua2zlyS1J7mwqwfxMrYnwhQ0GAYAMv_MlLzkQAFRd9FmrN4JtkTTKc2Hqg/exec?acao=consultar";
 
   /* =====================================================================
      LÓGICA DOS BOTÕES DE ALERTA
@@ -273,7 +273,7 @@
       return;
     }
 
-    if (!URL_CONSULTA || URL_CONSULTA.indexOf("COLE_AQUI") === 0) {
+    if (!URL_CONSULTA || URL_CONSULTA.indexOf("URL_CONSULTA") === 0) {
       mostrarResultadoErro("Falta configurar URL_CONSULTA no código.");
       return;
     }
