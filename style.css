@@ -1,0 +1,300 @@
+/* =======================================================================
+   ALERTA FILA - PERSEGUINI
+   Estilos separados do index.html.
+   ======================================================================= */
+
+/* ---------------------------------------------------------------
+   TOKENS DE DESIGN
+   Paleta "rodovia à noite": navy profundo + âmbar (cor de sinaleira
+   de caminhão), tipografia condensada pra remeter a placas de estrada.
+   --------------------------------------------------------------- */
+:root {
+  --navy-950: #0a1a2b;
+  --navy-900: #0f2740;
+  --navy-800: #163752;
+  --amber-400: #f4a100;
+  --amber-300: #ffbb33;
+  --green-500: #2fbf71;
+  --red-500: #e0503f;
+  --ink-100: #f4f7fa;
+  --ink-300: #b9c7d6;
+  --ink-500: #7e93a7;
+  --radius: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: radial-gradient(circle at 50% -10%, var(--navy-800), var(--navy-950) 60%);
+  color: var(--ink-100);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tipografia condensada só para títulos/rótulos - remete a placa de rodovia */
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&display=swap");
+.titulo-estrada {
+  font-family: "Barlow Condensed", -apple-system, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.tela {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px 32px;
+}
+
+/* ---------- Cabeçalho / personalização com foto ---------- */
+.avatar-wrap {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  padding: 3px;
+  background: linear-gradient(135deg, var(--amber-400), var(--amber-300));
+  box-shadow: 0 8px 24px rgba(244, 161, 0, 0.25);
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  background: var(--navy-800);
+}
+
+.nome-app {
+  margin-top: 18px;
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.subtitulo {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--ink-300);
+  text-align: center;
+}
+
+/* ---------- Cartão de status ---------- */
+.status-card {
+  margin-top: 32px;
+  width: 100%;
+  max-width: 340px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink-500);
+  flex-shrink: 0;
+  transition: background 0.25s ease;
+}
+.status-dot.ativo { background: var(--green-500); box-shadow: 0 0 12px var(--green-500); }
+.status-dot.parado { background: var(--red-500); box-shadow: 0 0 12px var(--red-500); }
+
+.status-texto {
+  font-size: 15px;
+  color: var(--ink-100);
+  line-height: 1.4;
+}
+.status-texto small {
+  display: block;
+  color: var(--ink-500);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* ---------- Botões ---------- */
+.botoes {
+  width: 100%;
+  max-width: 340px;
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+button.acao {
+  border: none;
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  font-size: 17px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+button.acao:active {
+  transform: scale(0.97);
+}
+button.acao:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+.btn-ativar {
+  background: linear-gradient(135deg, var(--green-500), #23a25f);
+  color: #06251a;
+}
+.btn-parar {
+  background: rgba(224, 80, 63, 0.14);
+  color: #ffb3a6;
+  border: 1px solid rgba(224, 80, 63, 0.4);
+}
+.btn-instalar {
+  background: linear-gradient(135deg, var(--amber-300), var(--amber-400));
+  color: #2b1a00;
+}
+
+.icone {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.rodape {
+  margin-top: auto;
+  padding-top: 40px;
+  font-size: 12px;
+  color: var(--ink-500);
+  text-align: center;
+}
+
+/* Respeita quem prefere menos animação */
+@media (prefers-reduced-motion: reduce) {
+  button.acao { transition: none; }
+}
+
+/* =====================================================================
+   CONSULTA DE AGENDAMENTO (novo)
+   Card pra digitar o número da nota fiscal e ver a data/hora prevista
+   de chegada, no mesmo estilo visual do restante do app.
+   ===================================================================== */
+
+.consulta-wrap {
+  width: 100%;
+  max-width: 340px;
+  margin-top: 28px;
+}
+
+.consulta-titulo {
+  font-size: 13px;
+  color: var(--ink-300);
+  margin-bottom: 10px;
+}
+
+.consulta-form {
+  display: flex;
+  gap: 10px;
+}
+
+.consulta-input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 0 16px;
+  height: 52px;
+  color: var(--ink-100);
+  font-size: 16px;
+}
+.consulta-input::placeholder {
+  color: var(--ink-500);
+}
+.consulta-input:focus {
+  outline: none;
+  border-color: var(--amber-400);
+}
+
+.btn-consultar {
+  flex-shrink: 0;
+  height: 52px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--amber-300), var(--amber-400));
+  color: #2b1a00;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+.btn-consultar:active {
+  transform: scale(0.96);
+}
+.btn-consultar:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+.resultado-card {
+  display: none;
+  margin-top: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+.resultado-card.mostrar {
+  display: block;
+}
+
+.resultado-status {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-500);
+}
+
+.resultado-datahora {
+  margin-top: 4px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--amber-300);
+}
+
+.resultado-linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  color: var(--ink-300);
+}
+.resultado-linha b {
+  color: var(--ink-100);
+  font-weight: 600;
+  text-align: right;
+}
+
+.resultado-card.erro {
+  border-color: rgba(224, 80, 63, 0.4);
+}
+.resultado-card.erro .resultado-status {
+  color: #ffb3a6;
+}

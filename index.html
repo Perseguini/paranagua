@@ -11,12 +11,16 @@
 <link rel="apple-touch-icon" href="icon-192.png" />
 <meta name="theme-color" content="#0a1a2b" />
 
+<!-- Estilo separado em arquivo próprio -->
+<link rel="stylesheet" href="style.css" />
+
 <!--
   =====================================================================
   ALERTA FILA - PERSEGUINI
   =====================================================================
   App de 1 tela pra ativar/desativar o alerta automático da fila de
-  caminhões (CARGA LIVE -> Telegram), rodando no seu Apps Script.
+  caminhões (CARGA LIVE -> Telegram), rodando no seu Apps Script, e
+  também consultar a data/hora do agendamento pelo número da nota fiscal.
 
   COMO INSTALAR NO CELULAR (tipo um app):
   1. Hospede este arquivo em algum lugar com link público (ex: o
@@ -27,198 +31,19 @@
   4. Pronto, vira um ícone de app.
 
   O QUE VOCÊ PRECISA EDITAR (só aqui embaixo, no bloco CONFIG):
-  - URL_ATIVAR  -> o link ".../exec?acao=iniciar" da sua implantação
-  - URL_PARAR   -> o link ".../exec?acao=parar" da sua implantação
-  - FOTO_URL    -> o link de uma foto/logo sua (ou do caminhão) pra
-                   aparecer no topo do app. Pode ser uma imagem
-                   hospedada no Google Drive (link direto), Imgur, etc.
-  - NOME_APP    -> o texto que aparece embaixo da foto.
+  - URL_ATIVAR    -> o link ".../exec?acao=iniciar" da sua implantação
+  - URL_PARAR     -> o link ".../exec?acao=parar" da sua implantação
+  - URL_CONSULTA  -> o link do SEU Apps Script que consulta o
+                     agendamento (veja o comentário grande logo acima
+                     da função consultarAgendamento() lá embaixo,
+                     explica por que precisa ser um script seu e não
+                     o site da ATEXP direto).
+  - FOTO_URL      -> o link de uma foto/logo sua (ou do caminhão) pra
+                     aparecer no topo do app. Pode ser uma imagem
+                     hospedada no Google Drive (link direto), Imgur, etc.
+  - NOME_APP      -> o texto que aparece embaixo da foto.
   =====================================================================
 -->
-
-<style>
-  /* ---------------------------------------------------------------
-     TOKENS DE DESIGN
-     Paleta "rodovia à noite": navy profundo + âmbar (cor de sinaleira
-     de caminhão), tipografia condensada pra remeter a placas de estrada.
-     --------------------------------------------------------------- */
-  :root {
-    --navy-950: #0a1a2b;
-    --navy-900: #0f2740;
-    --navy-800: #163752;
-    --amber-400: #f4a100;
-    --amber-300: #ffbb33;
-    --green-500: #2fbf71;
-    --red-500: #e0503f;
-    --ink-100: #f4f7fa;
-    --ink-300: #b9c7d6;
-    --ink-500: #7e93a7;
-    --radius: 18px;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
-  html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    background: radial-gradient(circle at 50% -10%, var(--navy-800), var(--navy-950) 60%);
-    color: var(--ink-100);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  /* Tipografia condensada só para títulos/rótulos - remete a placa de rodovia */
-  @import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&display=swap");
-  .titulo-estrada {
-    font-family: "Barlow Condensed", -apple-system, sans-serif;
-    letter-spacing: 0.02em;
-  }
-
-  .tela {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 48px 24px 32px;
-  }
-
-  /* ---------- Cabeçalho / personalização com foto ---------- */
-  .avatar-wrap {
-    width: 104px;
-    height: 104px;
-    border-radius: 50%;
-    padding: 3px;
-    background: linear-gradient(135deg, var(--amber-400), var(--amber-300));
-    box-shadow: 0 8px 24px rgba(244, 161, 0, 0.25);
-  }
-
-  .avatar {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    object-fit: cover;
-    display: block;
-    background: var(--navy-800);
-  }
-
-  .nome-app {
-    margin-top: 18px;
-    font-size: 28px;
-    font-weight: 700;
-    text-align: center;
-  }
-
-  .subtitulo {
-    margin-top: 4px;
-    font-size: 14px;
-    color: var(--ink-300);
-    text-align: center;
-  }
-
-  /* ---------- Cartão de status ---------- */
-  .status-card {
-    margin-top: 32px;
-    width: 100%;
-    max-width: 340px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--radius);
-    padding: 18px 20px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .status-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--ink-500);
-    flex-shrink: 0;
-    transition: background 0.25s ease;
-  }
-  .status-dot.ativo { background: var(--green-500); box-shadow: 0 0 12px var(--green-500); }
-  .status-dot.parado { background: var(--red-500); box-shadow: 0 0 12px var(--red-500); }
-
-  .status-texto {
-    font-size: 15px;
-    color: var(--ink-100);
-    line-height: 1.4;
-  }
-  .status-texto small {
-    display: block;
-    color: var(--ink-500);
-    font-size: 12px;
-    margin-top: 2px;
-  }
-
-  /* ---------- Botões ---------- */
-  .botoes {
-    width: 100%;
-    max-width: 340px;
-    margin-top: 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  button.acao {
-    border: none;
-    border-radius: var(--radius);
-    padding: 18px 20px;
-    font-size: 17px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    cursor: pointer;
-    transition: transform 0.12s ease, filter 0.12s ease;
-  }
-  button.acao:active {
-    transform: scale(0.97);
-  }
-  button.acao:disabled {
-    opacity: 0.55;
-    cursor: default;
-    transform: none;
-  }
-
-  .btn-ativar {
-    background: linear-gradient(135deg, var(--green-500), #23a25f);
-    color: #06251a;
-  }
-  .btn-parar {
-    background: rgba(224, 80, 63, 0.14);
-    color: #ffb3a6;
-    border: 1px solid rgba(224, 80, 63, 0.4);
-  }
-  .btn-instalar {
-    background: linear-gradient(135deg, var(--amber-300), var(--amber-400));
-    color: #2b1a00;
-  }
-
-  .icone {
-    font-size: 20px;
-    line-height: 1;
-  }
-
-  .rodape {
-    margin-top: auto;
-    padding-top: 40px;
-    font-size: 12px;
-    color: var(--ink-500);
-    text-align: center;
-  }
-
-  /* Respeita quem prefere menos animação */
-  @media (prefers-reduced-motion: reduce) {
-    button.acao { transition: none; }
-  }
-</style>
 </head>
 <body>
 
@@ -263,6 +88,40 @@
     </button>
   </div>
 
+  <!-- ============= CONSULTA DE AGENDAMENTO (novo) =============
+       Digita o número da NF e mostra a data/hora prevista de chegada,
+       igual à tela de consulta da ATEXP. -->
+  <div class="consulta-wrap">
+    <div class="consulta-titulo">Consultar agendamento pela nota fiscal</div>
+    <div class="consulta-form">
+      <input
+        class="consulta-input"
+        id="inputNF"
+        type="text"
+        inputmode="numeric"
+        placeholder="Número da NF"
+        onkeydown="if(event.key==='Enter'){consultarAgendamento();}"
+      />
+      <button class="btn-consultar" id="btnConsultar" onclick="consultarAgendamento()">
+        🔍 Consultar
+      </button>
+    </div>
+
+    <div class="resultado-card" id="resultadoCard">
+      <div class="resultado-status" id="resultadoStatus"></div>
+      <div class="resultado-datahora" id="resultadoDataHora"></div>
+      <div class="resultado-linha" id="linhaPlaca" style="display:none;">
+        <span>Placa</span><b id="valorPlaca"></b>
+      </div>
+      <div class="resultado-linha" id="linhaProduto" style="display:none;">
+        <span>Produto</span><b id="valorProduto"></b>
+      </div>
+      <div class="resultado-linha" id="linhaTerminal" style="display:none;">
+        <span>Terminal</span><b id="valorTerminal"></b>
+      </div>
+    </div>
+  </div>
+
   <!--
     Botão de instalar o app na tela inicial. Fica escondido até o
     navegador avisar que a instalação está disponível (evento
@@ -284,8 +143,12 @@
   var URL_ATIVAR = "https://script.google.com/macros/s/AKfycbzRAzv6kthbdO27OXkgSScOnsHkjraKfVdgcaNeEmB2mgo6lsf9OEHq5mkoFH_c4ybuSQ/exec?acao=iniciar";
   var URL_PARAR  = "https://script.google.com/macros/s/AKfycbzRAzv6kthbdO27OXkgSScOnsHkjraKfVdgcaNeEmB2mgo6lsf9OEHq5mkoFH_c4ybuSQ/exec?acao=parar";
 
+  // Link do SEU Apps Script de consulta (veja o comentário grande
+  // logo acima da função consultarAgendamento() mais abaixo).
+  var URL_CONSULTA = "COLE_AQUI_A_URL_DO_SEU_SCRIPT_DE_CONSULTA/exec";
+
   /* =====================================================================
-     LÓGICA DOS BOTÕES
+     LÓGICA DOS BOTÕES DE ALERTA
      Usamos fetch em modo "no-cors": o navegador dispara a requisição
      pro Apps Script normalmente, mas por ser um domínio diferente
      (script.google.com), o JavaScript não consegue LER a resposta.
@@ -341,6 +204,107 @@
 
   function pararAlerta() {
     dispararAcao(URL_PARAR, "🛑 Alerta desativado.", "parado");
+  }
+
+  /* =====================================================================
+     CONSULTA DE AGENDAMENTO PELA NOTA FISCAL
+     -------------------------------------------------------------------
+     IMPORTANTE — por que URL_CONSULTA não pode ser o link do site da
+     ATEXP direto:
+
+     O site da ATEXP (aquele "script.google.com" da print) é um Apps
+     Script de terceiros, igual o CARGA LIVE. Ele mostra o resultado
+     usando "google.script.run" por dentro da própria página dele, com
+     um token de sessão que só existe naquela aba carregada — não dá
+     pra chamar essa URL por fetch() de um site diferente (o navegador
+     bloqueia por CORS, e mesmo em modo no-cors não dá pra LER a
+     resposta pra pegar a data/hora).
+
+     A solução é a mesma que já foi usada pro CARGA LIVE: criar um
+     Apps Script SEU (um projeto novo, ou uma função a mais no que já
+     existe), que:
+       1. Recebe a NF por parâmetro (?nf=123456)
+       2. Faz a consulta por trás (UrlFetchApp, ou headless
+          tipo Browserless/Puppeteer, dependendo de como o site da
+          ATEXP responder à consulta)
+       3. Devolve pra este app um JSON simples, por exemplo:
+          { "ok": true, "placa": "AXO-9E35", "produto": "FARELO SOJA 1",
+            "terminal": "ROCHA LOG", "dataHora": "07/09/2026 11:00" }
+
+     Depois é só colar a URL desse SEU script em URL_CONSULTA acima
+     que essa função já funciona sem precisar mexer em mais nada.
+     ===================================================================== */
+
+  var inputNF = document.getElementById("inputNF");
+  var btnConsultar = document.getElementById("btnConsultar");
+  var resultadoCard = document.getElementById("resultadoCard");
+  var resultadoStatus = document.getElementById("resultadoStatus");
+  var resultadoDataHora = document.getElementById("resultadoDataHora");
+  var linhaPlaca = document.getElementById("linhaPlaca");
+  var linhaProduto = document.getElementById("linhaProduto");
+  var linhaTerminal = document.getElementById("linhaTerminal");
+  var valorPlaca = document.getElementById("valorPlaca");
+  var valorProduto = document.getElementById("valorProduto");
+  var valorTerminal = document.getElementById("valorTerminal");
+
+  function mostrarLinha(linhaEl, valorEl, texto) {
+    if (texto) {
+      valorEl.textContent = texto;
+      linhaEl.style.display = "flex";
+    } else {
+      linhaEl.style.display = "none";
+    }
+  }
+
+  function mostrarResultadoErro(mensagem) {
+    resultadoCard.className = "resultado-card mostrar erro";
+    resultadoStatus.textContent = "Não encontrado";
+    resultadoDataHora.textContent = mensagem;
+    linhaPlaca.style.display = "none";
+    linhaProduto.style.display = "none";
+    linhaTerminal.style.display = "none";
+  }
+
+  function consultarAgendamento() {
+    var nf = inputNF.value.trim();
+
+    if (!nf) {
+      mostrarResultadoErro("Digite o número da NF.");
+      return;
+    }
+
+    if (!URL_CONSULTA || URL_CONSULTA.indexOf("COLE_AQUI") === 0) {
+      mostrarResultadoErro("Falta configurar URL_CONSULTA no código.");
+      return;
+    }
+
+    btnConsultar.disabled = true;
+    btnConsultar.textContent = "Consultando...";
+    resultadoCard.className = "resultado-card mostrar";
+    resultadoStatus.textContent = "Consultando...";
+    resultadoDataHora.textContent = "";
+
+    fetch(URL_CONSULTA + "?nf=" + encodeURIComponent(nf))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) {
+          mostrarResultadoErro((data && data.erro) || "Nenhum agendamento encontrado pra essa NF.");
+          return;
+        }
+        resultadoCard.className = "resultado-card mostrar";
+        resultadoStatus.textContent = "Data/hora prevista de chegada";
+        resultadoDataHora.textContent = data.dataHora || "—";
+        mostrarLinha(linhaPlaca, valorPlaca, data.placa);
+        mostrarLinha(linhaProduto, valorProduto, data.produto);
+        mostrarLinha(linhaTerminal, valorTerminal, data.terminal);
+      })
+      .catch(function () {
+        mostrarResultadoErro("Não consegui conectar. Confira sua internet ou a URL configurada.");
+      })
+      .finally(function () {
+        btnConsultar.disabled = false;
+        btnConsultar.textContent = "🔍 Consultar";
+      });
   }
 
   /* =====================================================================
